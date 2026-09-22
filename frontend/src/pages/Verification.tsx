@@ -476,7 +476,7 @@ function Verification() {
                     <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-400 via-white to-cyan-400 animate-loading-bar" />
                   </div>
                   <div className="mt-4 grid grid-cols-4 gap-2 text-[10px] uppercase tracking-wider text-slate-500">
-                    {['OCR', 'Validation', 'Forensics', 'Risk'].map((step, index) => (
+                    {['OCR', 'Validation', 'Forensics', 'Risk'].map((step) => (
                       <div key={step} className="flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
                         {step}
