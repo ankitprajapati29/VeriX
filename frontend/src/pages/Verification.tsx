@@ -174,7 +174,7 @@ function Verification() {
       formData.append('file', file)
 
       const response = await fetch(
-        'http://127.0.0.1:8000/api/verify',
+        'https://verix-backend-0y2g.onrender.com/api/verify',
         {
           method: 'POST',
           body: formData,
