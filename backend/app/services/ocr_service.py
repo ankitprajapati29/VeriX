@@ -1,10 +1,17 @@
 from typing import Tuple
+import os
+import shutil
 
 import pytesseract
 from PIL import Image, ImageFilter, ImageOps
 
 
-TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+TESSERACT_PATH = (
+    os.getenv("TESSERACT_CMD")
+    or shutil.which("tesseract")
+    or r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)
+
 MAX_OCR_TEXT = 25000
 
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
@@ -25,7 +32,6 @@ def preprocess_for_ocr(image: Image.Image) -> Image.Image:
     Keeps the existing VeriX OCR behavior lightweight.
     """
     image = image.convert("RGB")
-
     gray = ImageOps.grayscale(image)
 
     # Light contrast enhancement
@@ -47,7 +53,6 @@ def run_ocr(image: Image.Image) -> Tuple[str, float]:
     Fallback:
         Tesseract PSM 11 when primary OCR returns no text.
     """
-
     processed = preprocess_for_ocr(image)
 
     data = pytesseract.image_to_data(
