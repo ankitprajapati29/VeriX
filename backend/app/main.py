@@ -715,6 +715,35 @@ def detect_qr(image: Image.Image) -> Dict[str, Any]:
             except Exception:
                 pass
 
+            # FAST PATH:
+            # If two independent passes already decoded the exact same
+            # QR payload, we have enough evidence for the existing
+            # strict confirmation rule. Stop here instead of processing
+            # the remaining variants.
+            if decoded_candidates:
+                latest_data = decoded_candidates[-1][1].strip()
+                latest_count = sum(
+                    1
+                    for _, candidate_data in decoded_candidates
+                    if candidate_data.strip() == latest_data
+                )
+
+                if latest_count >= 2:
+                    methods = [
+                        method
+                        for method, candidate_data in decoded_candidates
+                        if candidate_data.strip() == latest_data
+                    ]
+
+                    return {
+                        "detected": True,
+                        "decoded": True,
+                        "data": latest_data[:2000],
+                        "status": "DECODED",
+                        "method": "confirmed_" + "_".join(methods[:3]),
+                        "confidence": "HIGH",
+                    }
+
         # ---------------------------------------------------------
         # Confirm decoded data
         # ---------------------------------------------------------
