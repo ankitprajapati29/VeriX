@@ -69,30 +69,54 @@ VeriX/
 │   └── Frontend application
 ├── .gitignore
 └── README.md
+
 ---
 
 ## 🔍 Verification Process
 
 ### 1. Document Upload
+
 The user uploads an identity or supporting document through the VeriX interface.
 
 ### 2. Document Analysis
+
 The system analyzes the uploaded document and determines its document type.
 
 ### 3. OCR Processing
+
 OCR technology extracts relevant textual information from the document.
 
 ### 4. Validation
+
 Extracted information is processed and validated using document-specific verification logic.
 
 ### 5. Risk Analysis
+
 VeriX evaluates anomalies and forensic signals that may indicate potential document manipulation or suspicious characteristics.
 
 ### 6. Risk Assessment
+
 The collected signals are combined to generate a structured risk assessment.
 
 ### 7. Final Result
+
 The verification result is presented through the web interface for easier interpretation.
+
+---
+
+## 🌐 Project Links
+
+### Live Website
+
+[VeriX – AI-Powered Document Verification](https://verix-frontend-owkb.onrender.com/)
+
+### 🎥 Demo Video
+
+[VeriX – Project Demo](https://youtu.be/Bvvg0bEWZ0U)
+
+### 💻 GitHub Repository
+
+[VeriX – Source Code](https://github.com/ankitprajapati29/VeriX)
 
 ---
 
@@ -121,4 +145,4 @@ VeriX is a prototype developed for the Global Innovation Hackathon 2026. Its ana
 
 ## 👨‍💻 Repository
 
-This repository contains the source code and implementation of the VeriX document and identity verification system. 
+This repository contains the source code and implementation of the VeriX document and identity verification system.
