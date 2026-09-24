@@ -501,73 +501,174 @@ def analyze_ela(image: Image.Image) -> Dict[str, Any]:
 
 def detect_qr(image: Image.Image) -> Dict[str, Any]:
     """
-    Strict QR detection.
+    Fast-first QR detection.
 
-    A QR is marked DECODED only when:
-    1. OpenCV detects a real QR geometry (points), and
-    2. decoded data is obtained, and
-    3. the result is confirmed by another independent pass
-       or the same QR geometry is consistently detected.
+    Strategy:
+    1. Try original and grayscale images first.
+    2. Try 2x upscaling only if needed.
+    3. If a QR is decoded consistently by two passes, return immediately.
+    4. Only then use heavier fallbacks (3x, CLAHE, adaptive, Otsu).
+    5. A single decode is never treated as confirmed.
 
-    This reduces false DECODED results on documents without QR codes.
+    This keeps the existing conservative two-pass confirmation rule
+    while avoiding unnecessary preprocessing on easy documents.
     """
 
     try:
         rgb = np.array(image.convert("RGB"))
         bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-
         detector = cv2.QRCodeDetector()
 
+        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+
+        decoded_candidates = []
+        detected_points = []
+
+        def valid_qr_points(points, img_width, img_height):
+            if points is None:
+                return False
+
+            try:
+                pts = np.asarray(points, dtype=np.float32)
+
+                if pts.size < 8:
+                    return False
+
+                pts = pts.reshape(-1, 2)
+
+                if len(pts) < 4:
+                    return False
+
+                for px, py in pts:
+                    if (
+                        px < -20
+                        or py < -20
+                        or px > img_width + 20
+                        or py > img_height + 20
+                    ):
+                        return False
+
+                min_x = float(np.min(pts[:, 0]))
+                max_x = float(np.max(pts[:, 0]))
+                min_y = float(np.min(pts[:, 1]))
+                max_y = float(np.max(pts[:, 1]))
+
+                if (max_x - min_x) < 20 or (max_y - min_y) < 20:
+                    return False
+
+                return True
+
+            except Exception:
+                return False
+
+        def process_variant(method_name, variant):
+            vh, vw = variant.shape[:2]
+
+            try:
+                found, points = detector.detect(variant)
+
+                if not found or not valid_qr_points(points, vw, vh):
+                    return False
+
+                detected_points.append((method_name, points))
+
+                try:
+                    data, decoded_points, _ = detector.detectAndDecode(variant)
+
+                    if (
+                        data
+                        and data.strip()
+                        and valid_qr_points(decoded_points, vw, vh)
+                    ):
+                        decoded_candidates.append(
+                            (method_name, data.strip())
+                        )
+                except Exception:
+                    pass
+
+            except Exception:
+                pass
+
+            return True
+
+        def confirmed_result():
+            if not decoded_candidates:
+                return None
+
+            counts = {}
+            for _, data in decoded_candidates:
+                counts[data] = counts.get(data, 0) + 1
+
+            for data, count in counts.items():
+                if count >= 2:
+                    methods = [
+                        method
+                        for method, candidate_data in decoded_candidates
+                        if candidate_data == data
+                    ]
+                    return {
+                        "detected": True,
+                        "decoded": True,
+                        "data": data[:2000],
+                        "status": "DECODED",
+                        "method": "confirmed_" + "_".join(methods[:3]),
+                        "confidence": "HIGH",
+                    }
+
+            return None
+
         # ---------------------------------------------------------
-        # Prepare variants
+        # FAST PATH: original -> gray -> 2x
         # ---------------------------------------------------------
+        process_variant("original", bgr)
+        result = confirmed_result()
+        if result:
+            return result
 
-        gray = cv2.cvtColor(
-            bgr,
-            cv2.COLOR_BGR2GRAY
-        )
+        process_variant("gray", gray)
+        result = confirmed_result()
+        if result:
+            return result
 
-        variants = [
-            ("original", bgr),
-            ("gray", gray),
-        ]
-
-        # Upscale
         h, w = gray.shape[:2]
 
-        for scale in [2.0, 3.0]:
+        upscaled_2x = cv2.resize(
+            gray,
+            None,
+            fx=2.0,
+            fy=2.0,
+            interpolation=cv2.INTER_CUBIC,
+        )
+        process_variant("upscale_2x", upscaled_2x)
+        result = confirmed_result()
+        if result:
+            return result
 
-            upscaled = cv2.resize(
-                gray,
-                None,
-                fx=scale,
-                fy=scale,
-                interpolation=cv2.INTER_CUBIC,
-            )
+        # ---------------------------------------------------------
+        # HEAVY FALLBACKS: only when fast path did not confirm
+        # ---------------------------------------------------------
+        upscaled_3x = cv2.resize(
+            gray,
+            None,
+            fx=3.0,
+            fy=3.0,
+            interpolation=cv2.INTER_CUBIC,
+        )
+        process_variant("upscale_3x", upscaled_3x)
+        result = confirmed_result()
+        if result:
+            return result
 
-            variants.append(
-                (
-                    f"upscale_{scale}x",
-                    upscaled
-                )
-            )
-
-        # CLAHE
         clahe = cv2.createCLAHE(
             clipLimit=3.0,
             tileGridSize=(8, 8),
         )
+        process_variant("clahe", clahe.apply(gray))
+        result = confirmed_result()
+        if result:
+            return result
 
-        variants.append(
-            ("clahe", clahe.apply(gray))
-        )
-
-        # Adaptive threshold
-        blurred = cv2.GaussianBlur(
-            gray,
-            (3, 3),
-            0,
-        )
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
         adaptive = cv2.adaptiveThreshold(
             blurred,
@@ -577,235 +678,39 @@ def detect_qr(image: Image.Image) -> Dict[str, Any]:
             31,
             5,
         )
+        process_variant("adaptive", adaptive)
+        result = confirmed_result()
+        if result:
+            return result
 
-        variants.append(
-            ("adaptive", adaptive)
-        )
-
-        # Otsu
         _, otsu = cv2.threshold(
             blurred,
             0,
             255,
             cv2.THRESH_BINARY + cv2.THRESH_OTSU,
         )
-
-        variants.append(
-            ("otsu", otsu)
-        )
-
-        # ---------------------------------------------------------
-        # Store candidate detections
-        # ---------------------------------------------------------
-
-        decoded_candidates = []
-        detected_points = []
+        process_variant("otsu", otsu)
+        result = confirmed_result()
+        if result:
+            return result
 
         # ---------------------------------------------------------
-        # Helper for point validation
+        # Detected geometry but no reliable two-pass decode
         # ---------------------------------------------------------
-
-        def valid_qr_points(points, img_width, img_height):
-
-            if points is None:
-                return False
-
-            try:
-                pts = np.asarray(points, dtype=np.float32)
-
-                # OpenCV QR points should contain 4 corners.
-                if pts.size < 8:
-                    return False
-
-                pts = pts.reshape(-1, 2)
-
-                if len(pts) < 4:
-                    return False
-
-                # All points must lie reasonably inside image.
-                for px, py in pts:
-
-                    if (
-                        px < -20
-                        or py < -20
-                        or px > img_width + 20
-                        or py > img_height + 20
-                    ):
-                        return False
-
-                # Bounding box
-                min_x = float(np.min(pts[:, 0]))
-                max_x = float(np.max(pts[:, 0]))
-                min_y = float(np.min(pts[:, 1]))
-                max_y = float(np.max(pts[:, 1]))
-
-                qr_width = max_x - min_x
-                qr_height = max_y - min_y
-
-                # Reject extremely tiny random detections.
-                if qr_width < 20 or qr_height < 20:
-                    return False
-
-                return True
-
-            except Exception:
-                return False
-
-        # ---------------------------------------------------------
-        # Run detector
-        # ---------------------------------------------------------
-
-        for method_name, variant in variants:
-
-            vh, vw = variant.shape[:2]
-
-            # ---------------------------------------------
-            # Explicit detection first
-            # ---------------------------------------------
-            try:
-
-                found, points = detector.detect(
-                    variant
-                )
-
-                if found and valid_qr_points(
-                    points,
-                    vw,
-                    vh,
-                ):
-
-                    detected_points.append(
-                        (
-                            method_name,
-                            points,
-                        )
-                    )
-
-                    # -------------------------------------
-                    # Decode only after geometry detection
-                    # -------------------------------------
-                    try:
-
-                        data, decoded_points, _ = (
-                            detector.detectAndDecode(
-                                variant
-                            )
-                        )
-
-                        if (
-                            data
-                            and data.strip()
-                            and valid_qr_points(
-                                decoded_points,
-                                vw,
-                                vh,
-                            )
-                        ):
-
-                            decoded_candidates.append(
-                                (
-                                    method_name,
-                                    data.strip(),
-                                )
-                            )
-
-                    except Exception:
-                        pass
-
-            except Exception:
-                pass
-
-        # ---------------------------------------------------------
-        # Confirm decoded data
-        # ---------------------------------------------------------
-
-        if decoded_candidates:
-
-            # Count identical decoded values.
-            data_counts = {}
-
-            for _, data in decoded_candidates:
-
-                normalized = data.strip()
-
-                data_counts[normalized] = (
-                    data_counts.get(normalized, 0) + 1
-                )
-
-            # -----------------------------------------------------
-            # Strong confirmation:
-            # same QR data decoded by at least 2 passes
-            # -----------------------------------------------------
-
-            confirmed_data = None
-            confirmed_method = None
-
-            for data, count in data_counts.items():
-
-                if count >= 2:
-
-                    confirmed_data = data
-
-                    methods = [
-                        method
-                        for method, candidate_data
-                        in decoded_candidates
-                        if candidate_data == data
-                    ]
-
-                    confirmed_method = (
-                        "confirmed_" +
-                        "_".join(methods[:3])
-                    )
-
-                    break
-
-            if confirmed_data:
-
-                return {
-                    "detected": True,
-                    "decoded": True,
-                    "data": confirmed_data[:2000],
-                    "status": "DECODED",
-                    "method": confirmed_method,
-                    "confidence": "HIGH",
-                }
-
-            # -----------------------------------------------------
-            # One-pass decode is NOT enough.
-            #
-            # This prevents random OpenCV false decodes.
-            # -----------------------------------------------------
-
-            if detected_points:
-
-                return {
-                    "detected": True,
-                    "decoded": False,
-                    "data": None,
-                    "status": "DETECTED_NOT_DECODED",
-                    "method": decoded_candidates[0][0],
-                    "confidence": "MEDIUM",
-                }
-
-        # ---------------------------------------------------------
-        # QR geometry detected but no reliable data
-        # ---------------------------------------------------------
-
         if detected_points:
-
+            method = (
+                decoded_candidates[0][0]
+                if decoded_candidates
+                else detected_points[0][0]
+            )
             return {
                 "detected": True,
                 "decoded": False,
                 "data": None,
                 "status": "DETECTED_NOT_DECODED",
-                "method": detected_points[0][0],
+                "method": method,
                 "confidence": "MEDIUM",
             }
-
-        # ---------------------------------------------------------
-        # No QR
-        # ---------------------------------------------------------
 
         return {
             "detected": False,
@@ -817,7 +722,6 @@ def detect_qr(image: Image.Image) -> Dict[str, Any]:
         }
 
     except Exception as exc:
-
         return {
             "detected": False,
             "decoded": False,

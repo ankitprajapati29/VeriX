@@ -410,11 +410,14 @@ def detect_faces(
     image: Image.Image,
 ) -> Dict[str, Any]:
     """
-    Conservative human-face detection for identity documents.
+    Conservative and optimized human-face detection for identity documents.
 
-    A face is reported only when the same region is supported by
-    multiple detector passes. This reduces false positives from
-    document text, symbols, QR patterns, and portrait-like artifacts.
+    Strategy:
+    1. Try the original grayscale image first.
+    2. If a face has repeated detector support, stop early.
+    3. Only if needed, use enhanced variants as fallbacks.
+    4. Upscale only selected fallback variants, not every variant.
+    5. Preserve the existing strict filtering and multi-pass confirmation.
 
     This is a technical image-analysis signal only. It does not
     prove identity or document authenticity.
@@ -454,58 +457,151 @@ def detect_faces(
                 "error": "Image dimensions are invalid.",
             }
 
+        # --------------------------------------------------------
+        # FAST PATH
+        # --------------------------------------------------------
+        # The original grayscale image is the most important pass.
+        # Run all existing detector configurations once.
+        #
+        # If repeated support is found, there is no reason to spend
+        # CPU on four additional preprocessing variants.
         variants = _prepare_variants(rgb_image)
 
-        all_faces = []
+        original = variants[0]
+        original_faces = _filter_face_boxes(
+            _detect_on_image(original),
+            original.shape[1],
+            original.shape[0],
+        )
 
-        # Every variant is treated as an independent support pass.
-        for variant in variants:
-            faces = _detect_on_image(variant)
+        final_faces = _merge_duplicate_faces(original_faces)
+
+        if final_faces:
+            face_list = [
+                {
+                    "x": int(x),
+                    "y": int(y),
+                    "width": int(face_width),
+                    "height": int(face_height),
+                }
+                for x, y, face_width, face_height in final_faces
+            ]
+
+            face_count = len(face_list)
+
+            if face_count == 1:
+                status = "ONE_FACE_DETECTED"
+                description = (
+                    "One face was detected with repeated multi-pass support."
+                )
+            else:
+                status = "MULTIPLE_FACES_DETECTED"
+                description = (
+                    f"{face_count} faces were detected with repeated "
+                    "multi-pass support."
+                )
+
+            return {
+                "available": True,
+                "detected": True,
+                "count": face_count,
+                "status": status,
+                "faces": face_list,
+                "passes": 1,
+                "method": (
+                    "OpenCV Haar Cascade "
+                    "optimized conservative multi-pass detection"
+                ),
+                "note": (
+                    "Face detection is a technical image-analysis signal. "
+                    "It does not prove identity or document authenticity."
+                ),
+            }
+
+        # --------------------------------------------------------
+        # FALLBACK PATH
+        # --------------------------------------------------------
+        # Original detection did not get repeated support.
+        # Use enhanced variants only now.
+        #
+        # Skip the original variant because it was already processed.
+        all_faces = list(original_faces)
+
+        # Equalized + CLAHE are the most useful fallback variants.
+        # Sharpening and denoising are retained as final fallbacks
+        # for difficult scans.
+        fallback_variants = variants[1:]
+
+        for index, variant in enumerate(fallback_variants):
             faces = _filter_face_boxes(
-                faces,
+                _detect_on_image(variant),
                 variant.shape[1],
                 variant.shape[0],
             )
+            all_faces.extend(faces)
 
-            for face in faces:
-                all_faces.append(face)
+            # Only upscale fallback variants when necessary.
+            # Large images do not benefit from this extra pass.
+            if width < 1400 and height < 1400:
+                # Prioritize CLAHE and equalized images. The remaining
+                # variants are only upscaled if earlier fallbacks fail.
+                should_upscale = index < 2 or not _merge_duplicate_faces(
+                    all_faces
+                )
 
-            upscaled = _upscale_if_needed(variant)
+                if should_upscale:
+                    upscaled = _upscale_if_needed(variant)
 
-            if (
-                upscaled.shape[0] != variant.shape[0]
-                or upscaled.shape[1] != variant.shape[1]
-            ):
-                upscaled_faces = _detect_on_image(upscaled)
+                    if (
+                        upscaled.shape[0] != variant.shape[0]
+                        or upscaled.shape[1] != variant.shape[1]
+                    ):
+                        upscaled_faces = _detect_on_image(upscaled)
 
-                scale_x = variant.shape[1] / upscaled.shape[1]
-                scale_y = variant.shape[0] / upscaled.shape[0]
+                        scale_x = (
+                            variant.shape[1] / upscaled.shape[1]
+                        )
+                        scale_y = (
+                            variant.shape[0] / upscaled.shape[0]
+                        )
 
-                for x, y, face_width, face_height in upscaled_faces:
-                    converted = (
-                        int(x * scale_x),
-                        int(y * scale_y),
-                        int(face_width * scale_x),
-                        int(face_height * scale_y),
-                    )
+                        for x, y, face_width, face_height in upscaled_faces:
+                            converted = (
+                                int(x * scale_x),
+                                int(y * scale_y),
+                                int(face_width * scale_x),
+                                int(face_height * scale_y),
+                            )
 
-                    converted_faces = _filter_face_boxes(
-                        [converted],
-                        variant.shape[1],
-                        variant.shape[0],
-                    )
+                            converted_faces = _filter_face_boxes(
+                                [converted],
+                                variant.shape[1],
+                                variant.shape[0],
+                            )
+                            all_faces.extend(converted_faces)
 
-                    all_faces.extend(converted_faces)
+            # Stop as soon as repeated support exists.
+            current_faces = _filter_face_boxes(
+                all_faces,
+                width,
+                height,
+            )
+            confirmed = _merge_duplicate_faces(current_faces)
 
-        # Final filtering in original image coordinates.
-        all_faces = _filter_face_boxes(
-            all_faces,
-            width,
-            height,
-        )
+            if confirmed:
+                final_faces = confirmed
+                break
+        else:
+            all_faces = _filter_face_boxes(
+                all_faces,
+                width,
+                height,
+            )
+            final_faces = _merge_duplicate_faces(all_faces)
 
-        final_faces = _merge_duplicate_faces(all_faces)
-
+        # --------------------------------------------------------
+        # RESPONSE
+        # --------------------------------------------------------
         face_list = [
             {
                 "x": int(x),
@@ -544,7 +640,7 @@ def detect_faces(
             "passes": len(variants),
             "method": (
                 "OpenCV Haar Cascade "
-                "conservative multi-pass detection"
+                "optimized conservative multi-pass detection"
             ),
             "note": (
                 "Face detection is a technical image-analysis signal. "
