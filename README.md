@@ -1,148 +1,109 @@
-# VeriX
 
-## AI-Powered Document & Identity Verification System
+<div align="center">
 
-VeriX is an AI-powered document verification and fraud-risk analysis system designed to analyze identity documents and identify suspicious or potentially fraudulent documents.
+# 🛡️ VeriX
 
-The system combines OCR, document validation, anomaly analysis, and forensic risk signals to provide a structured assessment of uploaded documents.
+### AI-Powered Document Verification & Fraud Risk Analysis
 
----
+An intelligent document screening system that combines OCR, document validation, anomaly detection, and forensic risk signals to support identity document verification.
 
-## 🚀 Key Features
+<br/>
 
-- 📄 Document Type Identification
-- 🔍 OCR-Based Information Extraction
-- ✅ Document Information Validation
-- ⚠️ Anomaly Detection
-- 🔬 Tampering & Forensic Risk Analysis
-- 🛡️ Fraud-Risk Assessment
-- 📊 Risk-Based Verification Results
-- 🌐 Web-Based User Interface
+<a href="https://verix-frontend-owkb.onrender.com/">
+  <img src="https://img.shields.io/badge/🚀_LIVE_WEBSITE-Visit_VeriX-16a34a?style=for-the-badge" alt="Live Website"/>
+</a>
+<a href="https://youtu.be/Bvvg0bEWZ0U">
+  <img src="https://img.shields.io/badge/▶_DEMO_VIDEO-Watch_Demo-red?style=for-the-badge&logo=youtube" alt="Demo Video"/>
+</a>
 
----
+<br/><br/>
 
-## 🧠 How VeriX Works
+<img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/TypeScript-Type_Safe-3178C6?style=flat-square&logo=typescript&logoColor=white"/>
+<img src="https://img.shields.io/badge/Python-Backend-3776AB?style=flat-square&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/FastAPI-APIs-009688?style=flat-square&logo=fastapi&logoColor=white"/>
 
-Document Upload  
-↓  
-Document Type Identification  
-↓  
-OCR & Information Extraction  
-↓  
-Document Validation  
-↓  
-Anomaly & Forensic Analysis  
-↓  
-Risk Assessment  
-↓  
-Verification Result
+</div>
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 Overview
 
-### Frontend
+**VeriX** is an AI-powered document verification and fraud-risk analysis system developed to help identify suspicious characteristics in identity documents.
 
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
+It combines Optical Character Recognition (OCR), document-specific validation, anomaly analysis, and forensic risk signals into a structured screening workflow.
 
-### Backend
+The goal is to make document screening more organized, explainable, and efficient while supporting further human review.
 
-- Python
-- FastAPI
-- Uvicorn
-- Tesseract OCR
-- OpenCV
-- PyMuPDF
+## ✨ Key Features
 
----
+- 📄 **Document Type Identification** — Identify the likely category of an uploaded document.
+- 🔍 **OCR-Based Extraction** — Extract readable information from supported documents.
+- ✅ **Document Validation** — Check extracted fields using relevant validation rules.
+- ⚠️ **Anomaly Analysis** — Examine inconsistencies and potentially suspicious signals.
+- 🔬 **Forensic Risk Screening** — Assess available indicators that may suggest tampering.
+- 🛡️ **Risk Assessment** — Present a structured risk-based screening result.
+- 📊 **Explainable Results** — Help users interpret the available verification signals.
+- 🌐 **Web Interface** — Access the system through a browser.
 
-## 📁 Project Structure
+## ⚙️ Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | Python, FastAPI, Uvicorn |
+| OCR | Tesseract OCR |
+| Image Processing | OpenCV, Pillow |
+| Document Processing | PyMuPDF |
+
+## 🔄 How It Works
 
 ```text
-VeriX/
-├── backend/
-│   └── Backend source code and APIs
-├── frontend/
-│   └── Frontend application
-├── .gitignore
-└── README.md
-
----
-
-## 🔍 Verification Process
-
-### 1. Document Upload
-
-The user uploads an identity or supporting document through the VeriX interface.
-
-### 2. Document Analysis
-
-The system analyzes the uploaded document and determines its document type.
-
-### 3. OCR Processing
-
-OCR technology extracts relevant textual information from the document.
-
-### 4. Validation
-
-Extracted information is processed and validated using document-specific verification logic.
-
-### 5. Risk Analysis
-
-VeriX evaluates anomalies and forensic signals that may indicate potential document manipulation or suspicious characteristics.
-
-### 6. Risk Assessment
-
-The collected signals are combined to generate a structured risk assessment.
-
-### 7. Final Result
-
-The verification result is presented through the web interface for easier interpretation.
-
----
+Document Upload
+      ↓
+Document Type Identification
+      ↓
+OCR & Information Extraction
+      ↓
+Document-Specific Validation
+      ↓
+Anomaly & Forensic Analysis
+      ↓
+Risk Assessment
+      ↓
+Structured Screening Result
+```
 
 ## 🌐 Project Links
 
-### Live Website
-
-[VeriX – AI-Powered Document Verification](https://verix-frontend-owkb.onrender.com/)
-
-### 🎥 Demo Video
-
-[VeriX – Project Demo](https://youtu.be/Bvvg0bEWZ0U)
-
-### 💻 GitHub Repository
-
-[VeriX – Source Code](https://github.com/ankitprajapati29/VeriX)
-
----
-
-## 🎯 Objective
-
-The objective of VeriX is to make document screening more efficient by combining AI-assisted analysis, OCR, validation, and forensic risk signals into a single verification workflow.
-
-VeriX is designed as a prototype for AI-powered document and identity verification.
-
----
+- **Live Website:** https://verix-frontend-owkb.onrender.com/
+- **Demo Video:** https://youtu.be/Bvvg0bEWZ0U
+- **GitHub Repository:** https://github.com/ankitprajapati29/VeriX
 
 ## 🏆 Hackathon
 
-**Project:** VeriX  
-**Team:** Algorise  
-**Event:** Global Innovation Hackathon 2026 – Build for a Better Future  
-**Organizer:** Bharat Academix
+- **Event:** Global Innovation Hackathon 2026 — Build for a Better Future
+- **Team:** Algorise
+- **Project:** VeriX — AI-Powered Document Verification & Fraud Risk Analysis
+
+## 🔮 Future Scope
+
+- Improve OCR accuracy and document preprocessing.
+- Expand document-specific validation.
+- Strengthen anomaly detection and explainability.
+- Improve evaluation using representative test documents.
+- Enhance secure file handling and privacy safeguards.
+
+## ⚠️ Disclaimer
+
+VeriX is a prototype intended to support document screening. Its risk assessments are not definitive proof of authenticity or fraud and should not replace appropriate official verification and human review.
 
 ---
 
-## 📌 Disclaimer
+<div align="center">
 
-VeriX is a prototype developed for the Global Innovation Hackathon 2026. Its analysis and risk assessment are intended to assist document screening and should not be treated as a definitive determination of document authenticity.
+**Built by [Ankit Prajapati](https://github.com/ankitprajapati29) & Team Algorise**
 
----
+*Building smarter, more explainable document screening solutions.*
 
-## 👨‍💻 Repository
-
-This repository contains the source code and implementation of the VeriX document and identity verification system.
+</div>
