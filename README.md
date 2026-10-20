@@ -102,7 +102,8 @@ VeriX is a prototype intended to support document screening. Its risk assessment
 
 <div align="center">
 
-**Built by [Ankit Prajapati](https://github.com/ankitprajapati29) & Team Algorise**
+**Built by [Ankit Prajapati](https://github.com/ankitprajapati29)
+
 
 *Building smarter, more explainable document screening solutions.*
 
